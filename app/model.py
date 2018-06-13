@@ -72,8 +72,14 @@ class UserSubject(db.Model):
     __tablename__ = "usersubject"
 
     id = db.Column(db.Integer, primary_key=True)
-    user = db.Column(db.Integer)
-    subject = db.Column(db.Integer)
+    user = db.Column(db.Integer, db.ForeignKey("users.id"))
+    subject = db.Column(db.Integer, db.ForeignKey("subject.id"))
+    users = db.relationship(
+        "Users", backref=db.backref("users", lazy="dynamic"))
+
+    subjects = db.relationship("Subjects",
+                            backref=db.backref("subject"), lazy="select")
+
 
     def __repr__(self):
         return "<UserSubjects: %r>" % self.subject

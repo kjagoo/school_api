@@ -10,3 +10,13 @@ user_inputs = {
     "lname": fields.String,
     "category": fields.Integer
 }
+
+subject_inputs = {
+    "id": fields.Integer,
+    "name": fields.String,
+    "description": fields.String,
+    "date_created": fields.DateTime(dt_format='rfc822'),
+    "date_modified": fields.DateTime(dt_format='rfc822'),
+    "created_by": fields.String,
+   
+}
