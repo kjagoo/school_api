@@ -12,29 +12,17 @@ manager = Manager(app)
 manager.add_command('db', MigrateCommand)
 
 
-class UserSubject(db.Model):
-    """ create User- Subject table """
-
-    __tablename__ = "usersubject"
-
+class Users(db.Model):
+    """   Users   """
+    __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
-    user = db.Column(db.Integer, db.ForeignKey("users.id"))
-    subject = db.Column(db.Integer, db.ForeignKey("subjects.id"))
-
-    def __repr__(self):
-        return "<UserSubjects: %r>" % self.subject.name
-
-
-class UserRights(db.Model):
-    """ Creates Access rights  """
-
-    __tablename__ = "userright"
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(200), unique=True)
-    
-    def __repr__(self):
-        return "<UserRights: %r>" % self.name
+    username = db.Column(db.String(255))
+    password_hash = db.Column(db.String(128))
+    email = db.Column(db.String(128))
+    fname = db.Column(db.String(100))
+    sname = db.Column(db.String(100))
+    lname = db.Column(db.String(100))
+    category = db.Column(db.Integer)
 
 
 class Subjects(db.Model):
@@ -50,22 +38,37 @@ class Subjects(db.Model):
                               onupdate=datetime.utcnow)
 
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"))
-    
+
     def __repr__(self):
         return "<Subjects: %r>" % self.title
 
 
-class Users(db.Model):
-    """   Users   """
-    __tablename__ = "users"
+class UserSubject(db.Model):
+    """ create User- Subject table """
+
+    __tablename__ = "usersubject"
+
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(255))
-    password_hash = db.Column(db.String(128))
-    email = db.Column(db.String(128))
-    fname = db.Column(db.String(100))
-    sname = db.Column(db.String(100))
-    lname = db.Column(db.String(100))
-    category = db.relationship("UserRights", backref=db.backref("user_right", lazy="dynamic")) 
-    
+    user = db.Column(db.Integer, db.ForeignKey("users.id"))
+    subject = db.Column(db.Integer, db.ForeignKey("subjects.id"))
+
+    def __repr__(self):
+        return "<UserSubjects: %r>" % self.subject
+
+
+class UserRights(db.Model):
+    """ Creates Access rights  """
+
+    __tablename__ = "userright"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), unique=True)
+
+    def __repr__(self):
+        return "<UserRights: %r>" % self.name
+
+
+
+
 if __name__ == '__main__':
     manager.run()
