@@ -1,7 +1,9 @@
 from flask import g, jsonify, request
 from flask_restful import Resource, marshal
+from flask_restful import reqparse
 from flask_httpauth import HTTPBasicAuth
 from sqlalchemy.exc import IntegrityError
+from .inputfields import subject_inputs
 from .model import Users, Subjects, UserSubject, UserRights
 from . import db, app
 
@@ -19,29 +21,15 @@ def unauthorized(message=None):
 
 def authorized_user_subjects(function):
     def auth_wrapper(*args, **kwargs):
-        g.subject = User_Subject.query.filter_by(id=kwargs["id"]).first()
+        g.subject = Subjects.query.filter_by(id=kwargs["id"]).first()
+        print g.subject
         try:
-            if g.subject.created_by == g.user.id:
-                return function(*args, **kwargs)
-            elif g.user.id == 0:
+            if g.subject.created_by:
                 return function(*args, **kwargs)
             return unauthorized()
         except:
-            return unauthorized("Error: The Subject doesn't exist.")
+            return unauthorized("Error: The subject doesn't exist.")
     return auth_wrapper
-
-
-# def authorized_user_item(function):
-#     def auth_wrapper(*args, **kwargs):
-#         g.item = Users.query.filter_by(id=kwargs["id"],
-#                                                  id=kwargs["item_id"]).first()
-#         try:
-#             if g.item.created_by == g.user.id:
-#                 return function(*args, **kwargs)
-#             return unauthorized()
-#         except:
-#             return unauthorized("Error: The student doesn't exist.")
-#     return auth_wrapper
 
 
 @app.before_request
@@ -106,7 +94,7 @@ def save_item(**kwargs):
 
 def delete_item(item, name, **kwargs):
     """
-    Delete a bucket list or bucket list item from the database.
+    Delete a user or subject  from the database.
     Arguments:
         item = The item to be deleted.
         name = The name of the item to be deleted.
@@ -131,7 +119,7 @@ def delete_item(item, name, **kwargs):
 
 def edit_item(**kwargs):
     """
-    Edit a bucket list or bucket list item.
+    Edit a user or subject.
     Arguments:
         kwargs["name"]: The title of the item to be edited.
         kwargs["item"]: The item to be edited.
@@ -143,7 +131,7 @@ def edit_item(**kwargs):
     db.session.add(kwargs["item"])
     db.session.commit()
     if kwargs["is_user"]:
-            item_type = "user"
+        item_type = "user"
     elif kwargs["is_subject"]:
         item_type = "subject"
     elif kwargs["is_userright"]:
@@ -168,14 +156,110 @@ class Index(Resource):
 
 
 class Subject(Resource):
-    """ Manage responses to the index route.
-    URL: /  Request method: GET
-    """
+    """ URL: /subjects/  Request methods: GET, POST """
+
     def get(self):
-        """ Return a welcome message """
-        return {}
+        """ Get all subjects 
+        """
+        args = request.args.to_dict()
+        page = int(args.get("page", 1))
+        limit = int(args.get("limit", 20))
+        search = args.get("q")
+
+        if search:
+            kwargs.update({"name": search})
+            error_message = {"message": "The subject '" + search +
+                                "' does not exist."}
+
+        subjects = Subjects.query.paginate(page=page,
+                                                        per_page=limit,
+                                                        error_out=False)
+        total_pages = subjects.pages
+        has_next_page = subjects.has_next
+        has_previous_page = subjects.has_prev
+
+        next_page = "None"
+        previous_page = "None"
+        if has_next_page:
+            next_page = str(request.url_root) + "/subjects?" + \
+                "limit=" + str(limit) + "&page=" + str(page + 1)
+
+        if has_previous_page:
+            previous_page = request.url_root + "/subjects?" + \
+                "limit=" + str(limit) + "&page=" + str(page - 1)
+
+        subjects = subjects.items
+
+        output = {"subjects": marshal(subjects, subject_inputs),
+                    "has_next_page": has_next_page,
+                    "total_pages": total_pages,
+                    "previous_pagea": previous_page,
+                    "next_page": next_page
+                    }
+        error_message = {"subjects":
+                         [{"message":
+                           "Subject Lists are Empty"}],
+                         "has_next_page": has_next_page,
+                         "total_pages": total_pages,
+                         "previous_pagea": previous_page,
+                         "next_page": next_page}
+
+        if subjects:
+            return output
+        else:
+            return error_message
 
     def post(self):
-        return {}
+        """ Add a Subject list """
+        parser = reqparse.RequestParser()
+        parser.add_argument("name", required=True, help="No title provided.")
+        parser.add_argument("description", type=str, default="")
+        args = parser.parse_args()
+        name, description = args["name"], args["description"]
+        subject = Subjects(name=name,
+                          description=description,
+                          created_by=g.user.id)
+
+        return save_item(name="name",
+                         item=subject,
+                         serializer=subject_inputs,
+                         is_user=False,
+                         is_subject=True,
+                         is_userright=False)
 
 
+class SubjectsId(Resource):
+    """ URL: /subjects/<id>   Request methods: GET, PUT, DELETE   """
+    @authorized_user_subjects
+    def get(self, id):
+        """ Get a subject list """
+        return marshal(g.subject, subject_inputs)
+
+    @authorized_user_subjects
+    def put(self, id):
+        """ Edit a subject """
+        parser = reqparse.RequestParser()
+        parser.add_argument("name",
+                            required=True,
+                            help="No title provided.")
+        parser.add_argument("description", type=str, default="")
+        args = parser.parse_args()
+        name, description = args["name"], args["description"]
+        g.subject.name = name
+        g.subject.description = description
+        return edit_item(name="name",
+                         item=g.subject,
+                         serializer=subject_inputs,
+                         is_user=False,
+                         is_subject=True,
+                         is_userright=False)
+
+
+    @authorized_user_subjects
+    def delete(self, id):
+        """ Delete a subject """
+        return delete_item(g.subject,
+                           g.subject.name,
+                           is_user=False,
+                           is_subject=True,
+                           is_userright=False)
