@@ -74,13 +74,14 @@ class UserSubject(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user = db.Column(db.Integer, db.ForeignKey("users.id"))
     subject = db.Column(db.Integer, db.ForeignKey("subject.id"))
-    is_main = db.Column(db.Boolean, default = False)
+    is_main = db.Column(db.Boolean)
     users = db.relationship(
         "Users", backref=db.backref("users", lazy="dynamic"))
     
 
     subjects = db.relationship("Subjects",
                             backref=db.backref("subject"), lazy="select")
+    users_subjects = db.UniqueConstraint('users', 'subjects')
 
 
     def __repr__(self):

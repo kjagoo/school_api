@@ -1,4 +1,5 @@
 from flask import g, jsonify, request
+import json
 from flask_restful import Resource, marshal
 from flask_restful import reqparse
 from flask_httpauth import HTTPBasicAuth
@@ -34,14 +35,15 @@ def authorized_user_subjects(function):
 
 def authorized_user_mysubjects(function):
     def auth_wrapper(*args, **kwargs):
-        g.subject = Subjects.query.join(UserSubject).filter_by(user=g.user.id).first()
-        print g.subject, g.user.id
-        try:
-            if g.subject.id:
-                return function(*args, **kwargs)
-            return unauthorized()
-        except:
-            return unauthorized("Error: The subject doesn't exist.")
+        g.subjects = Subjects.query.join(UserSubject).filter_by(user=g.user.id).all()
+        print g.subjects
+        return function(*args, **kwargs)
+        # try:
+        #     if g.subjects:
+        #         return function(*args, **kwargs)
+        #     return unauthorized()
+        # except Exception as e:
+        #     return unauthorized("Error: The subject doesn't exist.2")
     return auth_wrapper
 
 
@@ -212,7 +214,7 @@ class Subject(Resource):
         output = {"subjects": marshal(subjects, subject_inputs),
                     "has_next_page": has_next_page,
                     "total_pages": total_pages,
-                    "previous_pagea": previous_page,
+                    "previous_page": previous_page,
                     "next_page": next_page
                     }
         error_message = {"subjects":
@@ -220,7 +222,7 @@ class Subject(Resource):
                            "Subject Lists are Empty"}],
                          "has_next_page": has_next_page,
                          "total_pages": total_pages,
-                         "previous_pagea": previous_page,
+                         "previous_page": previous_page,
                          "next_page": next_page}
 
         if subjects:
@@ -290,53 +292,55 @@ class MySubject(Resource):
 
     @authorized_user_mysubjects
     def get(self):
-        """ Get all subjects 
+        """ Get all mysubjects 
         """
-        args = request.args.to_dict()
-        page = int(args.get("page", 1))
-        limit = int(args.get("limit", 20))
-        search = args.get("q")
+        # args = request.args.to_dict()
+        # page = int(args.get("page", 1))
+        # limit = int(args.get("limit", 20))
+        # search = args.get("q")
 
-        if search:
-            kwargs.update({"name": search})
-            error_message = {"message": "The subject '" + search +
-                             "' does not exist."}
+        # if search:
+        #     kwargs.update({"id": search})
+        #     error_message = {"message": "The subject '" + search +
+        #                      "' does not exist."}
 
-        subjects = Subjects.query.paginate(page=page,
-                                           per_page=limit,
-                                           error_out=False)
-        total_pages = subjects.pages
-        has_next_page = subjects.has_next
-        has_previous_page = subjects.has_prev
+        # subjects = UserSubject.query.paginate(page=page,per_page=limit,error_out=False)
+        
+        # total_pages = subjects.pages
+        # has_next_page = subjects.has_next
+        # has_previous_page = subjects.has_prev
 
-        next_page = "None"
-        previous_page = "None"
-        if has_next_page:
-            next_page = str(request.url_root) + "/subjects?" + \
-                "limit=" + str(limit) + "&page=" + str(page + 1)
+        # next_page = "None"
+        # previous_page = "None"
+        # if has_next_page:
+        #     next_page = str(request.url_root) + "/mysubjects?" + \
+        #         "limit=" + str(limit) + "&page=" + str(page + 1)
 
-        if has_previous_page:
-            previous_page = request.url_root + "/subjects?" + \
-                "limit=" + str(limit) + "&page=" + str(page - 1)
+        # if has_previous_page:
+        #     previous_page = request.url_root + "/mysubjects?" + \
+        #         "limit=" + str(limit) + "&page=" + str(page - 1)
 
-        subjects = subjects.items
+        # subjects = subjects.items
 
-        output = {"subjects": marshal(subjects, subject_inputs),
-                  "has_next_page": has_next_page,
-                  "total_pages": total_pages,
-                  "previous_pagea": previous_page,
-                  "next_page": next_page
-                  }
-        error_message = {"subjects":
-                         [{"message":
-                           "Subject Lists are Empty"}],
-                         "has_next_page": has_next_page,
-                         "total_pages": total_pages,
-                         "previous_pagea": previous_page,
-                         "next_page": next_page}
-
+        # output = {"subjects": marshal(subjects, subject_inputs),
+        #           "has_next_page": has_next_page,
+        #           "total_pages": total_pages,
+        #           "previous_page": previous_page,
+        #           "next_page": next_page
+        #           }
+        # error_message = {"subjects":
+        #                  [{"message":
+        #                    "Subject Lists are Empty"}],
+        #                  "has_next_page": has_next_page,
+        #                  "total_pages": total_pages,
+        #                  "previous_page": previous_page,
+        #  
+        #                "next_page": next_page}
+        
+        subjects =  Subjects.query.join(UserSubject).filter_by(user=g.user.id).all()
+        subjects = {'name': dict(subjects)}
         if subjects:
-            return output
+            return g.subjects
         else:
             return error_message
 
@@ -346,9 +350,16 @@ class MySubject(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("subject", required=True,
                             help="No title provided.")
+        parser.add_argument("is_main", required=True,
+                            help="Select if your major or main teaching subject.")
         args = parser.parse_args()
-        name = args["subject"]
-        subject = UserSubject(subject=name,
+        if args["is_main"] == 'true':
+            args["is_main"] = True
+        else:
+            args["is_main"] = False
+        name, is_main = args["subject"],args["is_main"]
+        is_main
+        subject = UserSubject(subject=name, is_main=is_main,
                               user=g.user.id)
 
         return save_item(name="name",
