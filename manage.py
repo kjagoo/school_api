@@ -67,6 +67,10 @@ class UserRights(db.Model):
     def __repr__(self):
         return "<UserRights: %r>" % self.name
 
+    def nuisance_method(self):
+        """ Added this method just to test Joshua on Something"""
+        pass
+
 
 
 
