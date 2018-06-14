@@ -8,10 +8,10 @@ from flask_migrate import Migrate, MigrateCommand
 
 from . import db, app
 
-migrate = Migrate(app, db)
-manager = Manager(app)
+# migrate = Migrate(app, db)
+# manager = Manager(app)
 
-manager.add_command('db', MigrateCommand)
+# manager.add_command('db', MigrateCommand)
 
 
 class Users(db.Model):
@@ -74,8 +74,10 @@ class UserSubject(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user = db.Column(db.Integer, db.ForeignKey("users.id"))
     subject = db.Column(db.Integer, db.ForeignKey("subject.id"))
+    is_main = db.Column(db.Boolean, default = False)
     users = db.relationship(
         "Users", backref=db.backref("users", lazy="dynamic"))
+    
 
     subjects = db.relationship("Subjects",
                             backref=db.backref("subject"), lazy="select")

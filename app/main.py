@@ -3,7 +3,7 @@ from flask_restful import Resource, marshal
 from flask_restful import reqparse
 from flask_httpauth import HTTPBasicAuth
 from sqlalchemy.exc import IntegrityError
-from .inputfields import subject_inputs
+from .inputfields import subject_inputs, usersubject_inputs
 from .model import Users, Subjects, UserSubject, UserRights
 from . import db, app
 
@@ -24,7 +24,20 @@ def authorized_user_subjects(function):
         g.subject = Subjects.query.filter_by(id=kwargs["id"]).first()
         print g.subject
         try:
-            if g.subject.created_by:
+            if g.subject.id:
+                return function(*args, **kwargs)
+            return unauthorized()
+        except:
+            return unauthorized("Error: The subject doesn't exist.")
+    return auth_wrapper
+
+
+def authorized_user_mysubjects(function):
+    def auth_wrapper(*args, **kwargs):
+        g.subject = Subjects.query.join(UserSubject).filter_by(user=g.user.id).first()
+        print g.subject, g.user.id
+        try:
+            if g.subject.id:
                 return function(*args, **kwargs)
             return unauthorized()
         except:
@@ -71,6 +84,8 @@ def save_item(**kwargs):
             item_type = "subject"
         elif kwargs["is_userright"]:
             item_type = "user right"
+        elif kwargs["is_usersubject"]:
+            item_type = "user subject"
         # include token on registration
         if kwargs["is_user"]:
             user = Users.query.filter_by(
@@ -111,6 +126,8 @@ def delete_item(item, name, **kwargs):
             item_type = "subject"
         elif kwargs["is_userright"]:
             item_type = "user right"
+        elif kwargs["is_usersubject"]:
+            item_type = "user subject"
         return {"message": "Successfully deleted " + item_type + ": '" +
                 name + "'."}
     else:
@@ -136,6 +153,8 @@ def edit_item(**kwargs):
         item_type = "subject"
     elif kwargs["is_userright"]:
         item_type = "user right"
+    elif kwargs["is_usersubject"]:
+            item_type = "user subject"
     message = {"message": "Successfully updated " + item_type + "."}
     response = marshal(kwargs["item"], kwargs["serializer"])
     response.update(message)
@@ -209,6 +228,7 @@ class Subject(Resource):
         else:
             return error_message
 
+
     def post(self):
         """ Add a Subject list """
         parser = reqparse.RequestParser()
@@ -263,3 +283,79 @@ class SubjectsId(Resource):
                            is_user=False,
                            is_subject=True,
                            is_userright=False)
+
+
+class MySubject(Resource):
+    """ URL: /mysubjects/  Request methods: GET, POST """
+
+    @authorized_user_mysubjects
+    def get(self):
+        """ Get all subjects 
+        """
+        args = request.args.to_dict()
+        page = int(args.get("page", 1))
+        limit = int(args.get("limit", 20))
+        search = args.get("q")
+
+        if search:
+            kwargs.update({"name": search})
+            error_message = {"message": "The subject '" + search +
+                             "' does not exist."}
+
+        subjects = Subjects.query.paginate(page=page,
+                                           per_page=limit,
+                                           error_out=False)
+        total_pages = subjects.pages
+        has_next_page = subjects.has_next
+        has_previous_page = subjects.has_prev
+
+        next_page = "None"
+        previous_page = "None"
+        if has_next_page:
+            next_page = str(request.url_root) + "/subjects?" + \
+                "limit=" + str(limit) + "&page=" + str(page + 1)
+
+        if has_previous_page:
+            previous_page = request.url_root + "/subjects?" + \
+                "limit=" + str(limit) + "&page=" + str(page - 1)
+
+        subjects = subjects.items
+
+        output = {"subjects": marshal(subjects, subject_inputs),
+                  "has_next_page": has_next_page,
+                  "total_pages": total_pages,
+                  "previous_pagea": previous_page,
+                  "next_page": next_page
+                  }
+        error_message = {"subjects":
+                         [{"message":
+                           "Subject Lists are Empty"}],
+                         "has_next_page": has_next_page,
+                         "total_pages": total_pages,
+                         "previous_pagea": previous_page,
+                         "next_page": next_page}
+
+        if subjects:
+            return output
+        else:
+            return error_message
+
+
+    def post(self):
+        """ Add a Subject list """
+        parser = reqparse.RequestParser()
+        parser.add_argument("subject", required=True,
+                            help="No title provided.")
+        args = parser.parse_args()
+        name = args["subject"]
+        subject = UserSubject(subject=name,
+                              user=g.user.id)
+
+        return save_item(name="name",
+                         item=subject,
+                         serializer=usersubject_inputs,
+                         is_user=False,
+                         is_subject=False,
+                         is_userright=False,
+                         is_usersubject=True
+                         )

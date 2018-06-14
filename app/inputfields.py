@@ -20,3 +20,10 @@ subject_inputs = {
     "created_by": fields.String,
    
 }
+usersubject_inputs = {
+    "id": fields.Integer,
+    "user": fields.Integer,
+    "subject": fields.Integer,
+    "is_main": fields.Boolean
+
+}

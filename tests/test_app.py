@@ -66,6 +66,20 @@ class TestSchool(TestBase):
         print (response.data)
         self.assertTrue("The name already exists" in output["error"])
 
+    def test_edit_subject(self):
+        """ Test updating of subjects"""
+        self.subject = {"name": "Home science class",
+                        "description": "How to cook sushi"}
+        response = self.app.put("/subjects/1",
+                                data=self.subject,
+                                headers=self.get_token())
+        self.assertEqual(response.status_code, 200)
+        output = json.loads(response.data.decode('utf-8'))
+        self.assertIn("Successfully updated subject.", output["message"])
+        self.assertIn(self.subject["name"], response.data.decode('utf-8'))
+        self.assertIn(self.subject["description"],
+                      response.data.decode('utf-8'))
+
     def test_delete_subject(self):
         """ Test delete subjects """
         response = self.app.delete("/subjects/3", headers=self.get_token())
@@ -80,19 +94,7 @@ class TestSchool(TestBase):
             self.assertIn("Successfully deleted subject",
                           output["message"])
 
-    def test_edit_subject(self):
-        """ Test updating of subjects"""
-        self.subject = {"name": "Home science class",
-                        "description": "How to cook sushi"}
-        response = self.app.put("/subjects/3",
-                                data=self.subject,
-                                headers=self.get_token())
-        self.assertEqual(response.status_code, 200)
-        output = json.loads(response.data.decode('utf-8'))
-        self.assertIn("Successfully updated subject list.", output["message"])
-        self.assertIn(self.subject["name"], response.data.decode('utf-8'))
-        self.assertIn(self.subject["description"],
-                      response.data.decode('utf-8'))
+    
 
     def test_get_subject_id(self):
         """ Test that specified ID subject is displayed """
